@@ -10,7 +10,7 @@ SYNTHETIC_DATA_DIR = os.path.join(BASE_DIR, "data", "synthetic")
 os.makedirs(SYNTHETIC_DATA_DIR, exist_ok=True)
 
 # Configuration for our dataset
-NUM_SAMPLES = 500         # Total light curves to generate (250 planets, 250 noise)
+NUM_SAMPLES = 8000        # Total light curves to generate (4000 planets, 4000 noise)
 DAYS_OBSERVED = 27.0      # Standard observation window (similar to TESS)
 DATA_POINTS = 2000        # Number of flux readings per curve
 BINS = 201                # The fixed input size for our AI model

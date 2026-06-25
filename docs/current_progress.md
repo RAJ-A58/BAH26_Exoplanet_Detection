@@ -20,13 +20,18 @@ We have successfully established an end-to-end data engineering and deep learnin
 In our initial test run, the model achieved an accuracy of **~47%** with a loss stalled at `0.6931`. 
 *Why?* A loss of 0.6931 is the exact mathematical baseline for random guessing in binary crossentropy. The CNN was unable to learn the planetary features and resorted to guessing.
 
-## 3. Immediate Next Steps (The "Data Scientist Fix")
+## 3. Immediate Next Steps (The "Data Scientist Fix") — DONE
 
-The failure to learn in the first run was expected due to two missing scaling factors that we will implement next:
+The failure to learn in the first run was expected due to two missing scaling factors, both of which have now been implemented:
 
-1.  **Increase Dataset Size:** We only generated 500 samples for the test run. Deep learning models require significantly more data to generalize.
-    *   *Action:* Update `generate_dataset.py` to produce **5,000 to 10,000 samples**.
-2.  **Implement Data Normalization:** Neural networks struggle to learn when input data is centered around `1.0` (which is the default baseline for relative stellar flux). 
-    *   *Action:* Inject a `StandardScaler` or `BatchNormalization` layer into `train_model.py` to center all light curve data around a mean of `0.0` before it enters the CNN.
+1.  `[x]` **Increase Dataset Size:** Deep learning models require significantly more data to generalize.
+    *   *Action taken:* Updated `generate_dataset.py` to produce **8,000 samples** (4,000 planets / 4,000 noise), up from 500.
+2.  `[x]` **Implement Data Normalization:** Neural networks struggle to learn when input data is centered around `1.0` (which is the default baseline for relative stellar flux).
+    *   *Action taken:* Injected a `BatchNormalization` layer (`Flux_Normalization`) into `train_model.py` immediately after the input, re-centering flux toward a mean of `0.0` before it feeds **both** CNN branches.
 
-Once these two fixes are applied, we expect the validation accuracy to spike significantly.
+With these two fixes applied, we expect the validation accuracy to spike significantly on the next training run.
+
+## 4. Future Improvements (If Accuracy Still Stalls)
+
+*   **Focal Loss:** Swap `binary_crossentropy` for focal loss to focus the model on the rare, hard-to-classify planetary transits.
+*   **True Dual-View Inputs:** Currently both branches share the same 201-bin curve and differ only by kernel size. Implement distinct global (e.g. 2001-bin) and local (e.g. 201-bin) views per the original AstroNet design in `implementation_plan.md`.

@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Conv1D, MaxPooling1D, Flatten, Dense, Concatenate, Dropout
+from tensorflow.keras.layers import Input, Conv1D, MaxPooling1D, Flatten, Dense, Concatenate, Dropout, BatchNormalization
 from sklearn.model_selection import train_test_split
 
 # Setup directories
@@ -26,9 +26,14 @@ print("2. Building the Dual-Branch 1D-CNN (AstroNet-inspired)...")
 # Input layer (Shape: 201 bins, 1 feature/flux)
 input_layer = Input(shape=(201, 1), name="LightCurve_Input")
 
+# --- NORMALIZATION ---
+# Raw stellar flux is centered around 1.0, which stalls CNN learning (loss stuck at 0.6931).
+# BatchNormalization re-centers the flux around a mean of ~0.0 before it enters the branches.
+normalized_input = BatchNormalization(name="Flux_Normalization")(input_layer)
+
 # --- BRANCH A: Local View (Small Kernels) ---
 # Designed to look closely at the sharp edges of the transit dip
-branch_a = Conv1D(filters=16, kernel_size=3, activation='relu', padding='same')(input_layer)
+branch_a = Conv1D(filters=16, kernel_size=3, activation='relu', padding='same')(normalized_input)
 branch_a = MaxPooling1D(pool_size=2)(branch_a)
 branch_a = Conv1D(filters=32, kernel_size=3, activation='relu', padding='same')(branch_a)
 branch_a = MaxPooling1D(pool_size=2)(branch_a)
@@ -36,7 +41,7 @@ branch_a = Flatten()(branch_a)
 
 # --- BRANCH B: Global View (Large Kernels) ---
 # Designed to look at the overall shape (U-shape vs V-shape)
-branch_b = Conv1D(filters=16, kernel_size=11, activation='relu', padding='same')(input_layer)
+branch_b = Conv1D(filters=16, kernel_size=11, activation='relu', padding='same')(normalized_input)
 branch_b = MaxPooling1D(pool_size=2)(branch_b)
 branch_b = Conv1D(filters=32, kernel_size=11, activation='relu', padding='same')(branch_b)
 branch_b = MaxPooling1D(pool_size=2)(branch_b)
