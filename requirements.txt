@@ -7,3 +7,5 @@ scipy
 scikit-learn
 tensorflow
 jupyter
+wotan
+batman-package
