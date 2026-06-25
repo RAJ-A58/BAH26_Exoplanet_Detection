@@ -17,19 +17,17 @@ We have successfully established an end-to-end data engineering and deep learnin
 **The Good News:** The pipeline is 100% functional. We can generate data, process it, and pass it through the complex Dual-Branch CNN without any crashes or mathematical shape errors.
 
 **The Current Results:**
-In our initial test run, the model achieved an accuracy of **~47%** with a loss stalled at `0.6931`. 
-*Why?* A loss of 0.6931 is the exact mathematical baseline for random guessing in binary crossentropy. The CNN was unable to learn the planetary features and resorted to guessing.
+After updating the dataset to **8,000 samples** and normalizing the data, our AI successfully trained to **~90% Validation Accuracy** with a **99% Precision** rate on synthetic data!
 
-## 3. Immediate Next Steps (The "Data Scientist Fix") — DONE
+## 3. Real-World Testing & Current Roadblocks
 
-The failure to learn in the first run was expected due to two missing scaling factors, both of which have now been implemented:
+To validate our 90% accurate model, we ran a zero-shot inference test against real NASA data for **Kepler-10b** (`test_kepler.py`).
 
-1.  `[x]` **Increase Dataset Size:** Deep learning models require significantly more data to generalize.
-    *   *Action taken:* Updated `generate_dataset.py` to produce **8,000 samples** (4,000 planets / 4,000 noise), up from 500.
-2.  `[x]` **Implement Data Normalization:** Neural networks struggle to learn when input data is centered around `1.0` (which is the default baseline for relative stellar flux).
-    *   *Action taken:* Injected a `BatchNormalization` layer (`Flux_Normalization`) into `train_model.py` immediately after the input, re-centering flux toward a mean of `0.0` before it feeds **both** CNN branches.
+**The Result:** The model failed to detect the planet, outputting only 17.56% confidence.
 
-With these two fixes applied, we expect the validation accuracy to spike significantly on the next training run.
+We have diagnosed this failure as a classic "Sim2Real" domain gap. The AI was trained to find massive Jupiter-sized gas giants, but Kepler-10b is a tiny, rocky terrestrial planet. The AI simply hasn't been trained to look for dips that small.
+
+> Please read `docs/known_challenges_and_fixes.md` for a complete breakdown of this problem and exactly how we will reprogram the dataset to fix it.
 
 ## 4. Future Improvements (If Accuracy Still Stalls)
 
