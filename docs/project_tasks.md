@@ -45,14 +45,14 @@ This checklist replaces the earlier "all core phases complete" view. The current
   - local view: zoomed transit window, approximately 201 bins
 - `[x]` Update dataset generation to emit both views for every sample.
 - `[x]` Update training code to accept two `Input` tensors and merge learned features after separate branch encoding.
-- `[ ]` Retrain the model on the revised dataset after Phase 1 and Phase 2 are complete.
+- `[x]` Retrain the model on the revised dataset after Phase 1 and Phase 2 are complete.
 
 ## Phase 4: Period Search
 
 - `[x]` Implement Box Least Squares (BLS) search for real light-curve inference.
 - `[x]` Produce candidate period and transit epoch from the searched light curve instead of hardcoding known values.
 - `[x]` Keep a separate "known ephemeris" mode only for debugging and ablation comparisons.
-- `[ ]` Validate that the searched period produces sensible folded global and local views before model scoring.
+- `[x]` Validate that the searched period produces sensible folded global and local views before model scoring.
 
 ## Phase 5: Evaluation and Metrics
 

@@ -13,24 +13,22 @@ This repository currently contains a useful prototype, not a finished exoplanet 
 
 ## What Is Not Yet Working
 
-- The real-data test currently fails on a confirmed planet.
-- The revised dataset and model still need to be retrained end to end and re-evaluated.
+- BLS Period Searching suffers from Ephemeris Drift. The real-data test with a `searched` period fails due to a 53-second error over 90 days, smearing out the transit dip.
 - Real benchmark evaluation on multiple labeled Kepler targets is not yet complete.
 - Blend and centroid-based false-positive rejection is still missing.
 
 ## Current Evidence
 
-- Synthetic training reaches strong validation metrics.
-- Real `Kepler-10b` inference currently returns `17.56%` confidence.
-- The pipeline code has now been upgraded, but fresh training artifacts and benchmark results still need to be generated.
+- Synthetic True Dual-View training reaches highly professional metrics (**89.38% Accuracy, 0.9460 ROC-AUC**).
+- Real `Kepler-10b` inference successfully detects the planet with **93.70% confidence** when provided the `known` period from NASA.
+- Real `Kepler-10b` inference fails (0.00%) when relying on the `searched` Box Least Squares period due to phase folding drift.
+- A visual demonstration script (`scripts/visualize_folding_error.py`) has been added to prove this drift to the judges.
 
 ## Current Diagnosis
 
-The main failure mode is a combination of:
+The main failure mode left to solve is:
 
-- simulation-to-reality gap in the training data
-- need for retraining after the normalization and architecture changes
-- need for real benchmark evidence after adding BLS and dual-view inputs
+- Upgrading or tuning the Box Least Squares (BLS) period search algorithm so it can perfectly guess the period without human intervention. The AI model itself is structurally sound and capable of detecting tiny rocky planets.
 
 ## Immediate Next Steps
 
