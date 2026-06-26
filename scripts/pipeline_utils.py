@@ -80,6 +80,9 @@ def build_dual_views(
     local_bins: int = LOCAL_BINS,
     local_half_width: float = LOCAL_VIEW_HALF_WIDTH,
 ) -> Dict[str, np.ndarray]:
+    # Standardize the entire light curve once so relative depths are preserved
+    flux = standardize_series(flux)
+    
     phases = compute_phases(time, period=period, t0=t0)
     phases, folded_flux = sort_by_phase(phases, flux)
 
@@ -108,7 +111,7 @@ def build_dual_views(
     return {
         "phases": phases,
         "folded_flux": folded_flux,
-        "global_view": standardize_series(global_view),
-        "local_view": standardize_series(local_view),
+        "global_view": global_view,
+        "local_view": local_view,
     }
 

@@ -22,11 +22,19 @@ BENCHMARK_CSV = os.path.join(BENCHMARK_RESULTS_DIR, "kepler_benchmark_results.cs
 
 
 def search_period_with_bls(time: np.ndarray, flux: np.ndarray):
-    durations = np.linspace(0.05, 0.25, 7) * u.day
-    periods = np.linspace(0.5, 20.0, 3000) * u.day
+    # Use tighter, more granular transit durations
+    durations = np.linspace(0.02, 0.15, 10) * u.day
     bls = BoxLeastSquares(time * u.day, flux)
-    power = bls.power(periods, durations)
+    
+    # Astropy calculates the perfect period grid based on the timeline length
+    # frequency_factor=10.0 heavily oversamples to guarantee we don't miss the peak
+    periods = bls.autoperiod(durations, minimum_period=0.5, maximum_period=5.0, frequency_factor=10.0)
+    
+    # Use Signal-to-Noise Ratio (SNR) instead of raw power for shallow rocky planets
+    power = bls.power(periods, durations, objective='snr')
+    
     best_idx = int(np.argmax(power.power))
+    
     return float(power.period[best_idx].value), float(power.transit_time[best_idx].value), power
 
 
@@ -58,6 +66,26 @@ def append_benchmark_row(row):
         writer.writerow(row)
 
 
+def auto_center_t0(time: np.ndarray, flux: np.ndarray, period: float, initial_t0: float) -> float:
+    from pipeline_utils import build_dual_views
+    best_t0 = initial_t0
+    min_center_flux = float('inf')
+    
+    # Sweep t0 back and forth by up to 10% of the period
+    shift_range = np.linspace(-0.1 * period, 0.1 * period, 200)
+    
+    for shift in shift_range:
+        test_t0 = initial_t0 + shift
+        views = build_dual_views(time, flux, period, test_t0)
+        
+        # The center of the local view is exactly bin 100. We look at bins 95 to 105.
+        center_flux = np.mean(views["local_view"][95:106])
+        if center_flux < min_center_flux:
+            min_center_flux = center_flux
+            best_t0 = test_t0
+            
+    return best_t0
+
 def main():
     parser = argparse.ArgumentParser(description="Run real Kepler inference with optional BLS period search.")
     parser.add_argument("--target", default="Kepler-10", help="Kepler target name to download.")
@@ -82,7 +110,9 @@ def main():
 
     if args.period_source == "searched":
         print("3. Searching for the period with Box Least Squares...")
-        period, t0, _ = search_period_with_bls(time, flux)
+        period, initial_t0, _ = search_period_with_bls(time, flux)
+        print("   Auto-centering the transit epoch (t0)...")
+        t0 = auto_center_t0(time, flux, period, initial_t0)
     else:
         print("3. Using the provided orbital period and transit epoch...")
         period, t0 = args.period, args.t0

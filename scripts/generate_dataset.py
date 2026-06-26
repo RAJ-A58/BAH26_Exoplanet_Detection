@@ -51,16 +51,15 @@ def inject_eclipsing_binary(
     period: float,
     t0: float,
 ) -> np.ndarray:
-    primary_depth = np.random.uniform(0.03, 0.12)
-    secondary_depth = primary_depth * np.random.uniform(0.35, 0.8)
-    width = np.random.uniform(0.03, 0.07) * period
-
-    phase_primary = ((time - t0 + 0.5 * period) % period) - 0.5 * period
-    phase_secondary = ((time - (t0 + 0.5 * period) + 0.5 * period) % period) - 0.5 * period
-
-    primary = primary_depth * np.exp(-0.5 * (phase_primary / width) ** 2)
-    secondary = secondary_depth * np.exp(-0.5 * (phase_secondary / (width * 1.2)) ** 2)
-    return 1.0 - primary - secondary
+    # Use Batman to generate realistic U/V shaped eclipsing binaries
+    # They are just planets with a much larger radius (depth)
+    return create_transit_flux(
+        time,
+        period=period,
+        t0=t0,
+        radius_ratio=np.random.uniform(0.15, 0.35),  # Massive Jupiter/Brown Dwarf size
+        inclination_range=(80.0, 90.0),
+    )
 
 
 def generate_sample(sample_class: str):
@@ -104,7 +103,8 @@ def generate_sample(sample_class: str):
     noise = np.random.normal(0, np.random.uniform(0.0004, 0.0015), DATA_POINTS)
     noisy_flux = signal_flux + stellar_wobble + noise
 
-    flattened_flux = flatten(time, noisy_flux, window_length=1.5, method="biweight")
+    # Use window_length=0.278 (approx 6.6 hours) to exactly match test_kepler.py (401 cadences)
+    flattened_flux = flatten(time, noisy_flux, window_length=0.278, method="biweight")
     dual_views = build_dual_views(time, flattened_flux, period=period, t0=t0)
 
     return {
