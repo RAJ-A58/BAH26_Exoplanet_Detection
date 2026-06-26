@@ -6,6 +6,8 @@ __pycache__/
 # Virtual Environments
 isroenv/
 venv/
+.venv/
+.run/
 env/
 .env
 
@@ -17,3 +19,6 @@ data/
 *.fits
 *.csv
 *.png
+
+# Generated evaluation artifacts
+results/synthetic/*.npy

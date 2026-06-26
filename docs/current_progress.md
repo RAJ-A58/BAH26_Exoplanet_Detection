@@ -1,35 +1,45 @@
-# Current Project Progress: Exoplanet Detection Pipeline
+# Current Project Progress
 
-*This document summarizes the current state of our hackathon project, what is functioning, and what our immediate next steps are for improving the AI model.*
+This repository currently contains a useful prototype, not a finished exoplanet detection pipeline.
 
-## 1. What We Have Built (The Pipeline)
+## What Is Working
 
-We have successfully established an end-to-end data engineering and deep learning pipeline. The repository currently contains:
+- Python environment and core dependencies are in place.
+- Raw Kepler light curves can be downloaded and cleaned.
+- Synthetic transit data can be generated with `batman` and detrended with `wotan`.
+- Shared per-sample standardization now exists for dataset generation, training, and inference.
+- The model code now uses true two-input global and local folded views instead of one shared 201-bin tensor.
+- The real-data inference script now supports BLS-based period search as well as known-ephemeris debugging mode.
 
-*   **`requirements.txt` & Environment:** A fully configured Python workspace with astrophysics libraries (`lightkurve`, `astropy`, `wotan`, `batman-package`) and AI libraries (`tensorflow`, `scikit-learn`).
-*   **Data Acquisition (`download_sample.py`):** Code that successfully interfaces with NASA's MAST API to download raw `.FITS` light curve files.
-*   **Data Processing (`preprocess_lightcurve.py`):** Algorithms to clean raw data, remove outliers (sigma-clipping), and perform **Phase-Folding** to amplify the transit signal.
-*   **Synthetic Data Generation (`simulate_transit.py` & `generate_dataset.py`):** To solve the "imbalanced dataset" problem, we built a physics simulator using `batman` to inject fake planets into noisy timelines, and `wotan` to mathematically detrend the stellar noise. We can mass-produce balanced datasets (50% planets, 50% noise) exported directly to `.npy` arrays.
-*   **The AI Model (`train_model.py`):** We have coded a **Dual-Branch 1D-CNN** (inspired by NASA's AstroNet). It has a "Local" branch (small kernels) to analyze transit dip shapes, and a "Global" branch (large kernels) to differentiate planets from binary stars.
+## What Is Not Yet Working
 
-## 2. Current Status & Results
+- The real-data test currently fails on a confirmed planet.
+- The revised dataset and model still need to be retrained end to end and re-evaluated.
+- Real benchmark evaluation on multiple labeled Kepler targets is not yet complete.
+- Blend and centroid-based false-positive rejection is still missing.
 
-**The Good News:** The pipeline is 100% functional. We can generate data, process it, and pass it through the complex Dual-Branch CNN without any crashes or mathematical shape errors.
+## Current Evidence
 
-**The Current Results:**
-After updating the dataset to **8,000 samples** and normalizing the data, our AI successfully trained to **~90% Validation Accuracy** with a **99% Precision** rate on synthetic data!
+- Synthetic training reaches strong validation metrics.
+- Real `Kepler-10b` inference currently returns `17.56%` confidence.
+- The pipeline code has now been upgraded, but fresh training artifacts and benchmark results still need to be generated.
 
-## 3. Real-World Testing & Current Roadblocks
+## Current Diagnosis
 
-To validate our 90% accurate model, we ran a zero-shot inference test against real NASA data for **Kepler-10b** (`test_kepler.py`).
+The main failure mode is a combination of:
 
-**The Result:** The model failed to detect the planet, outputting only 17.56% confidence.
+- simulation-to-reality gap in the training data
+- need for retraining after the normalization and architecture changes
+- need for real benchmark evidence after adding BLS and dual-view inputs
 
-We have diagnosed this failure as a classic "Sim2Real" domain gap. The AI was trained to find massive Jupiter-sized gas giants, but Kepler-10b is a tiny, rocky terrestrial planet. The AI simply hasn't been trained to look for dips that small.
+## Immediate Next Steps
 
-> Please read `docs/known_challenges_and_fixes.md` for a complete breakdown of this problem and exactly how we will reprogram the dataset to fix it.
+1. Regenerate the synthetic dataset with the new multi-class signal mix.
+2. Retrain the dual-view model on the regenerated dataset.
+3. Run the updated Kepler inference script in both `known` and `searched` period modes.
+4. Evaluate on multiple real Kepler targets with proper metrics.
+5. Add centroid and blend rejection after classifier performance improves.
 
-## 4. Future Improvements (If Accuracy Still Stalls)
+## Current Status Summary
 
-*   **Focal Loss:** Swap `binary_crossentropy` for focal loss to focus the model on the rare, hard-to-classify planetary transits.
-*   **True Dual-View Inputs:** Currently both branches share the same 201-bin curve and differ only by kernel size. Implement distinct global (e.g. 2001-bin) and local (e.g. 201-bin) views per the original AstroNet design in `implementation_plan.md`.
+The project has crossed the "prototype assembled" stage, but it has not yet crossed the "real exoplanet detection demonstrated" stage.

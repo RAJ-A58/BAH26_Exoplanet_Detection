@@ -1,104 +1,149 @@
+import argparse
 import os
+
+import matplotlib
 import numpy as np
-import matplotlib.pyplot as plt
 import tensorflow as tf
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Conv1D, MaxPooling1D, Flatten, Dense, Concatenate, Dropout, BatchNormalization
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix, roc_auc_score
 from sklearn.model_selection import train_test_split
+from tensorflow.keras.layers import Concatenate, Conv1D, Dense, Dropout, Flatten, Input, MaxPooling1D
+from tensorflow.keras.models import Model
 
-# Setup directories
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SYNTHETIC_DATA_DIR = os.path.join(BASE_DIR, "data", "synthetic")
-RESULTS_DIR = os.path.join(BASE_DIR, "results", "synthetic")
-os.makedirs(RESULTS_DIR, exist_ok=True)
+from pipeline_utils import GLOBAL_BINS, LOCAL_BINS, SYNTHETIC_DATA_DIR, SYNTHETIC_RESULTS_DIR, ensure_project_dirs
 
-print("1. Loading Dataset...")
-X = np.load(os.path.join(SYNTHETIC_DATA_DIR, "X_train.npy"))
-y = np.load(os.path.join(SYNTHETIC_DATA_DIR, "y_train.npy"))
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
-print(f"Total samples loaded: {len(X)}")
 
-# Split into Training (80%) and Validation (20%) sets
-X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+def parse_args():
+    parser = argparse.ArgumentParser(description="Train the dual-view exoplanet classifier.")
+    parser.add_argument("--epochs", type=int, default=15, help="Number of training epochs.")
+    parser.add_argument("--batch-size", type=int, default=32, help="Training batch size.")
+    parser.add_argument("--skip-plots", action="store_true", help="Skip plot generation for smoke tests.")
+    return parser.parse_args()
 
-print("2. Building the Dual-Branch 1D-CNN (AstroNet-inspired)...")
 
-# Input layer (Shape: 201 bins, 1 feature/flux)
-input_layer = Input(shape=(201, 1), name="LightCurve_Input")
+def build_model() -> Model:
+    global_input = Input(shape=(GLOBAL_BINS, 1), name="global_view")
+    global_branch = Conv1D(filters=16, kernel_size=11, activation="relu", padding="same")(global_input)
+    global_branch = MaxPooling1D(pool_size=5)(global_branch)
+    global_branch = Conv1D(filters=32, kernel_size=7, activation="relu", padding="same")(global_branch)
+    global_branch = MaxPooling1D(pool_size=5)(global_branch)
+    global_branch = Flatten()(global_branch)
 
-# --- NORMALIZATION ---
-# Raw stellar flux is centered around 1.0, which stalls CNN learning (loss stuck at 0.6931).
-# BatchNormalization re-centers the flux around a mean of ~0.0 before it enters the branches.
-normalized_input = BatchNormalization(name="Flux_Normalization")(input_layer)
+    local_input = Input(shape=(LOCAL_BINS, 1), name="local_view")
+    local_branch = Conv1D(filters=16, kernel_size=5, activation="relu", padding="same")(local_input)
+    local_branch = MaxPooling1D(pool_size=2)(local_branch)
+    local_branch = Conv1D(filters=32, kernel_size=3, activation="relu", padding="same")(local_branch)
+    local_branch = MaxPooling1D(pool_size=2)(local_branch)
+    local_branch = Flatten()(local_branch)
 
-# --- BRANCH A: Local View (Small Kernels) ---
-# Designed to look closely at the sharp edges of the transit dip
-branch_a = Conv1D(filters=16, kernel_size=3, activation='relu', padding='same')(normalized_input)
-branch_a = MaxPooling1D(pool_size=2)(branch_a)
-branch_a = Conv1D(filters=32, kernel_size=3, activation='relu', padding='same')(branch_a)
-branch_a = MaxPooling1D(pool_size=2)(branch_a)
-branch_a = Flatten()(branch_a)
+    merged = Concatenate()([global_branch, local_branch])
+    dense = Dense(128, activation="relu")(merged)
+    dense = Dropout(0.35)(dense)
+    dense = Dense(64, activation="relu")(dense)
+    dense = Dropout(0.25)(dense)
+    output = Dense(1, activation="sigmoid", name="planet_probability")(dense)
 
-# --- BRANCH B: Global View (Large Kernels) ---
-# Designed to look at the overall shape (U-shape vs V-shape)
-branch_b = Conv1D(filters=16, kernel_size=11, activation='relu', padding='same')(normalized_input)
-branch_b = MaxPooling1D(pool_size=2)(branch_b)
-branch_b = Conv1D(filters=32, kernel_size=11, activation='relu', padding='same')(branch_b)
-branch_b = MaxPooling1D(pool_size=2)(branch_b)
-branch_b = Flatten()(branch_b)
+    model = Model(inputs=[global_input, local_input], outputs=output)
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+        loss="binary_crossentropy",
+        metrics=[
+            "accuracy",
+            tf.keras.metrics.Recall(name="recall"),
+            tf.keras.metrics.Precision(name="precision"),
+            tf.keras.metrics.AUC(name="roc_auc"),
+        ],
+    )
+    return model
 
-# --- Merge Branches & Output ---
-merged = Concatenate()([branch_a, branch_b])
-dense = Dense(64, activation='relu')(merged)
-dense = Dropout(0.3)(dense) # Prevent overfitting
-output_layer = Dense(1, activation='sigmoid', name="Planet_Probability")(dense)
 
-# Compile Model
-model = Model(inputs=input_layer, outputs=output_layer)
-model.compile(
-    optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
-    loss='binary_crossentropy',
-    metrics=['accuracy', tf.keras.metrics.Recall(name='recall'), tf.keras.metrics.Precision(name='precision')]
-)
+def main():
+    args = parse_args()
+    ensure_project_dirs()
+    os.makedirs(SYNTHETIC_RESULTS_DIR, exist_ok=True)
 
-model.summary()
+    print("1. Loading Dataset...", flush=True)
+    X_global = np.load(os.path.join(SYNTHETIC_DATA_DIR, "X_global.npy"))
+    X_local = np.load(os.path.join(SYNTHETIC_DATA_DIR, "X_local.npy"))
+    y = np.load(os.path.join(SYNTHETIC_DATA_DIR, "y_train.npy"))
 
-print("\n3. Training the Model...")
-# Train the model
-history = model.fit(
-    X_train, y_train,
-    epochs=15,          # Passes over the data
-    batch_size=32,
-    validation_data=(X_val, y_val)
-)
+    print(f"Total samples loaded: {len(y)}", flush=True)
 
-print("\n4. Saving Results...")
-# Save the trained model
-model_path = os.path.join(RESULTS_DIR, "exoplanet_cnn_model.keras")
-model.save(model_path)
-print(f"Model saved to {model_path}")
+    (
+        X_global_train,
+        X_global_val,
+        X_local_train,
+        X_local_val,
+        y_train,
+        y_val,
+    ) = train_test_split(X_global, X_local, y, test_size=0.2, random_state=42, stratify=y)
 
-# Plot Training History
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+    print("2. Building the True Dual-View 1D-CNN...", flush=True)
+    model = build_model()
+    model.summary()
 
-# Accuracy Plot
-ax1.plot(history.history['accuracy'], label='Train Accuracy')
-ax1.plot(history.history['val_accuracy'], label='Validation Accuracy')
-ax1.set_title('Model Accuracy')
-ax1.set_xlabel('Epoch')
-ax1.set_ylabel('Accuracy')
-ax1.legend()
+    print("\n3. Training the Model...", flush=True)
+    history = model.fit(
+        {"global_view": X_global_train, "local_view": X_local_train},
+        y_train,
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+        validation_data=(
+            {"global_view": X_global_val, "local_view": X_local_val},
+            y_val,
+        ),
+    )
 
-# Loss Plot
-ax2.plot(history.history['loss'], label='Train Loss')
-ax2.plot(history.history['val_loss'], label='Validation Loss')
-ax2.set_title('Model Loss')
-ax2.set_xlabel('Epoch')
-ax2.set_ylabel('Loss')
-ax2.legend()
+    print("\n4. Evaluating the Model...", flush=True)
+    val_scores = model.predict({"global_view": X_global_val, "local_view": X_local_val}, verbose=0).ravel()
+    val_predictions = (val_scores >= 0.5).astype(int)
+    matrix = confusion_matrix(y_val, val_predictions)
+    roc_auc = roc_auc_score(y_val, val_scores)
 
-plot_path = os.path.join(RESULTS_DIR, "training_history.png")
-plt.savefig(plot_path)
-print(f"Training history plot saved to {plot_path}")
+    print(f"Validation ROC-AUC: {roc_auc:.4f}", flush=True)
+    print("Validation Confusion Matrix:", flush=True)
+    print(matrix, flush=True)
 
-print("\n--- PIPELINE COMPLETE! ---")
+    print("\n5. Saving Results...", flush=True)
+    model_path = os.path.join(SYNTHETIC_RESULTS_DIR, "exoplanet_cnn_model.keras")
+    model.save(model_path)
+    print(f"Model saved to {model_path}", flush=True)
+
+    np.save(
+        os.path.join(SYNTHETIC_RESULTS_DIR, "validation_predictions.npy"),
+        np.column_stack((y_val, val_scores, val_predictions)),
+    )
+
+    if not args.skip_plots:
+        fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+
+        axes[0].plot(history.history["accuracy"], label="Train Accuracy")
+        axes[0].plot(history.history["val_accuracy"], label="Validation Accuracy")
+        axes[0].set_title("Model Accuracy")
+        axes[0].set_xlabel("Epoch")
+        axes[0].set_ylabel("Accuracy")
+        axes[0].legend()
+
+        axes[1].plot(history.history["loss"], label="Train Loss")
+        axes[1].plot(history.history["val_loss"], label="Validation Loss")
+        axes[1].set_title("Model Loss")
+        axes[1].set_xlabel("Epoch")
+        axes[1].set_ylabel("Loss")
+        axes[1].legend()
+
+        ConfusionMatrixDisplay(confusion_matrix=matrix).plot(ax=axes[2], colorbar=False)
+        axes[2].set_title("Validation Confusion Matrix")
+
+        plt.tight_layout()
+        plot_path = os.path.join(SYNTHETIC_RESULTS_DIR, "training_history_and_confusion.png")
+        plt.savefig(plot_path)
+        plt.close(fig)
+        print(f"Training history plot saved to {plot_path}", flush=True)
+
+    print("\n--- PIPELINE COMPLETE! ---", flush=True)
+
+
+if __name__ == "__main__":
+    main()
