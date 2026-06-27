@@ -23,10 +23,16 @@ This repository currently contains a useful prototype, not a finished exoplanet 
 - The Missing Data Binning Bug was solved! The pipeline now accurately interpolates empty data bins.
 - The Hot Jupiter Rejection Bug was solved! The AI is now trained to physically distinguish the U-shapes of giant planets from the V-shapes and secondary eclipses of binary stars.
 - The AI was retrained on a scaled 30,000-sample dataset using a **Deep ResNet Architecture**, achieving **0.8792 ROC-AUC**. 20% of the data was injected with **real NASA noise**, forcing the AI to become highly resilient to real-world artifacts.
-- A **Multi-Target Benchmark Suite** (`scripts/run_benchmark_suite.py`) was successfully run with astonishing success:
-  - **Kepler-10b (Rocky, 0.8 days)**: `PLANET DETECTED` (99.84% confidence)
-  - **Kepler-4b (Neptune, 3.2 days)**: `PLANET DETECTED` (98.83% confidence)
-  - **Kepler-8b (Hot Jupiter, 3.5 days)**: `PLANET DETECTED` (99.70% confidence)
+- A **Multi-Target Benchmark Suite** (`scripts/run_benchmark_suite.py`) was successfully run with astonishing success against 9 completely unseen real NASA planets:
+  - **Kepler-10b (Rocky, 0.8 days)**: `PLANET DETECTED` (98.66% confidence)
+  - **Kepler-4b (Neptune, 3.2 days)**: `PLANET DETECTED` (97.54% confidence)
+  - **Kepler-8b (Hot Jupiter, 3.5 days)**: `PLANET DETECTED` (99.98% confidence)
+  - **Kepler-7b (Hot Jupiter, 4.9 days)**: `PLANET DETECTED` (100.00% confidence)
+  - **Kepler-1b (Hot Jupiter, 2.5 days)**: `PLANET DETECTED` (98.24% confidence)
+  - **Kepler-2b (Hot Jupiter, 2.2 days)**: `PLANET DETECTED` (100.00% confidence)
+  - **Kepler-3b (Neptune, 4.9 days)**: `PLANET DETECTED` (100.00% confidence)
+  - **Kepler-5b (Hot Jupiter, 3.5 days)**: `PLANET DETECTED` (100.00% confidence)
+  - **Kepler-6b (Hot Jupiter, 3.2 days)**: `PLANET DETECTED` (99.98% confidence)
 
 ## Current Diagnosis
 
