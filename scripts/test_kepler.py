@@ -29,13 +29,12 @@ BENCHMARK_CSV = os.path.join(BENCHMARK_RESULTS_DIR, "kepler_benchmark_results.cs
 
 
 def search_period_with_bls(time: np.ndarray, flux: np.ndarray):
-    # Use tighter, more granular transit durations
-    durations = np.linspace(0.02, 0.15, 10) * u.day
+    # Use fewer durations to speed up the search on massive 10-quarter datasets
+    durations = np.linspace(0.02, 0.15, 5) * u.day
     bls = BoxLeastSquares(time * u.day, flux)
     
-    # Astropy calculates the perfect period grid based on the timeline length
-    # frequency_factor=10.0 heavily oversamples to guarantee we don't miss the peak
-    periods = bls.autoperiod(durations, minimum_period=0.5, maximum_period=15.0, frequency_factor=10.0)
+    # frequency_factor=2.0 is perfectly fine for finding the spike, reducing grid size by 5x!
+    periods = bls.autoperiod(durations, minimum_period=0.5, maximum_period=15.0, frequency_factor=2.0)
     
     # Use Signal-to-Noise Ratio (SNR) instead of raw power for shallow rocky planets
     power = bls.power(periods, durations, objective='snr')
@@ -47,7 +46,14 @@ def search_period_with_bls(time: np.ndarray, flux: np.ndarray):
 
 def load_real_lightcurve(target: str):
     search_result = lk.search_lightcurve(target, author="Kepler", cadence="short")
-    lc = search_result[0].download(download_dir=RAW_NASA_DATA_DIR)
+    
+    # Download up to 4 quarters of data to drastically boost the Signal-to-Noise Ratio (SNR)
+    lc_collection = search_result[:4].download_all(download_dir=RAW_NASA_DATA_DIR)
+    
+    if lc_collection is None or len(lc_collection) == 0:
+        raise ValueError(f"No short cadence data found for {target}.")
+        
+    lc = lc_collection.stitch()
     lc_clean = lc.remove_nans().remove_outliers(sigma=5)
     lc_flat = lc_clean.flatten(window_length=401)
     return lc_flat.time.value, lc_flat.flux.value
