@@ -29,12 +29,13 @@ BENCHMARK_CSV = os.path.join(BENCHMARK_RESULTS_DIR, "kepler_benchmark_results.cs
 
 
 def search_period_with_bls(time: np.ndarray, flux: np.ndarray):
-    # Use fewer durations to speed up the search on massive 10-quarter datasets
-    durations = np.linspace(0.02, 0.15, 5) * u.day
+    # Use tighter, more granular transit durations
+    durations = np.linspace(0.02, 0.15, 10) * u.day
     bls = BoxLeastSquares(time * u.day, flux)
     
-    # frequency_factor=2.0 is perfectly fine for finding the spike, reducing grid size by 5x!
-    periods = bls.autoperiod(durations, minimum_period=0.5, maximum_period=15.0, frequency_factor=2.0)
+    # Astropy calculates the perfect period grid based on the timeline length
+    # frequency_factor=10.0 heavily oversamples to guarantee we don't miss the peak
+    periods = bls.autoperiod(durations, minimum_period=0.5, maximum_period=15.0, frequency_factor=10.0)
     
     # Use Signal-to-Noise Ratio (SNR) instead of raw power for shallow rocky planets
     power = bls.power(periods, durations, objective='snr')
