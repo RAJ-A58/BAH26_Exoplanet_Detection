@@ -62,11 +62,28 @@ def bin_phased_flux(
     clipped_phases = np.clip(phases, phase_min, phase_max - 1e-12)
     bin_indices = np.digitize(clipped_phases, bin_edges)
 
-    binned_flux = np.full(bins, default_value, dtype=np.float32)
+    binned_flux = np.zeros(bins, dtype=np.float32)
+    empty_mask = np.ones(bins, dtype=bool)
+    
     for idx in range(1, bins + 1):
         bucket = flux[bin_indices == idx]
         if len(bucket) > 0:
             binned_flux[idx - 1] = np.mean(bucket)
+            empty_mask[idx - 1] = False
+            
+    # Interpolate empty bins across the phase fold so they don't form "W" spikes
+    if np.any(empty_mask):
+        valid_indices = np.where(~empty_mask)[0]
+        empty_indices = np.where(empty_mask)[0]
+        
+        # If we have at least one valid point, interpolate linearly
+        if len(valid_indices) > 0:
+            binned_flux[empty_indices] = np.interp(
+                empty_indices, valid_indices, binned_flux[valid_indices]
+            )
+        else:
+            # Fallback if literally every single bin is empty
+            binned_flux.fill(default_value)
 
     return binned_flux
 
