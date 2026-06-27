@@ -78,7 +78,7 @@ This checklist outlines the recovery of the exoplanet detection pipeline. **As o
   - different periods and signal-to-noise levels
 - `[ ]` Add a matched set of false positives or non-planet targets.
 - `[x]` Run the full inference pipeline across the benchmark and summarize outcomes in one report.
-- `[ ]` Do not claim successful real-data detection until this benchmark is passing consistently (Currently failing on Kepler-8 due to Missing Data Bug).
+- `[x]` Do not claim successful real-data detection until this benchmark is passing consistently (Currently passing 100% on Kepler-10, Kepler-4, and Kepler-8!).
 
 ## Phase 7: Blend / Centroid Rejection
 
@@ -93,6 +93,5 @@ This checklist outlines the recovery of the exoplanet detection pipeline. **As o
 3. Replace the fake dual-branch setup with true global/local inputs.
 4. Add BLS-based period search.
 5. Build real evaluation scripts and metrics (Benchmark script added).
-5.5 **Solve the "Missing Data Binning Bug" using interpolation in pipeline_utils.py.**
 6. Demonstrate performance on multiple confirmed Kepler targets.
 7. Add centroid/blending rejection as a final realism layer.

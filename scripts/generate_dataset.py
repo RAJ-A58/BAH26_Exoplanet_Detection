@@ -51,15 +51,23 @@ def inject_eclipsing_binary(
     period: float,
     t0: float,
 ) -> np.ndarray:
-    # Use Batman to generate realistic U/V shaped eclipsing binaries
-    # They are just planets with a much larger radius (depth)
-    return create_transit_flux(
+    # Use Batman to generate realistic V-shaped eclipsing binaries (grazing transits)
+    primary = create_transit_flux(
         time,
         period=period,
         t0=t0,
-        radius_ratio=np.random.uniform(0.15, 0.35),  # Massive Jupiter/Brown Dwarf size
-        inclination_range=(80.0, 90.0),
+        radius_ratio=np.random.uniform(0.15, 0.35),
+        inclination_range=(75.0, 82.0), # Grazing creates V-shapes
     )
+    # Add a secondary eclipse offset by half a period
+    secondary = create_transit_flux(
+        time,
+        period=period,
+        t0=t0 + 0.5 * period,
+        radius_ratio=np.random.uniform(0.05, 0.15),
+        inclination_range=(75.0, 82.0),
+    )
+    return primary + secondary - 1.0
 
 
 def generate_sample(sample_class: str):
@@ -82,8 +90,8 @@ def generate_sample(sample_class: str):
             time,
             period=period,
             t0=t0,
-            radius_ratio=np.random.uniform(0.04, 0.12),
-            inclination_range=(86.0, 90.0),
+            radius_ratio=np.random.uniform(0.04, 0.20), # Allow massive Hot Jupiters
+            inclination_range=(86.0, 90.0), # Perfect U-shapes
         )
         label = 1
     elif sample_class == "eclipsing_binary":
