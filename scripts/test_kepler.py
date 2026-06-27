@@ -1,6 +1,13 @@
+import warnings
+
+# Suppress warnings
+warnings.filterwarnings("ignore")
+import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
 import argparse
 import csv
-import os
 
 import lightkurve as lk
 import numpy as np
@@ -28,7 +35,7 @@ def search_period_with_bls(time: np.ndarray, flux: np.ndarray):
     
     # Astropy calculates the perfect period grid based on the timeline length
     # frequency_factor=10.0 heavily oversamples to guarantee we don't miss the peak
-    periods = bls.autoperiod(durations, minimum_period=0.5, maximum_period=5.0, frequency_factor=10.0)
+    periods = bls.autoperiod(durations, minimum_period=0.5, maximum_period=15.0, frequency_factor=10.0)
     
     # Use Signal-to-Noise Ratio (SNR) instead of raw power for shallow rocky planets
     power = bls.power(periods, durations, objective='snr')
