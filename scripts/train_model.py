@@ -23,31 +23,53 @@ def parse_args():
     return parser.parse_args()
 
 
-def build_model() -> Model:
+from tensorflow.keras.layers import Add, GlobalAveragePooling1D
+from tensorflow.keras.regularizers import l2
+
+def residual_block(x, filters, kernel_size):
+    # Standard ResNet style block for 1D
+    shortcut = Conv1D(filters, 1, padding='same')(x)
+    
+    x = Conv1D(filters, kernel_size, activation="relu", padding="same", kernel_regularizer=l2(1e-4))(x)
+    x = Conv1D(filters, kernel_size, activation="relu", padding="same", kernel_regularizer=l2(1e-4))(x)
+    
+    x = Add()([shortcut, x])
+    x = MaxPooling1D(pool_size=2)(x)
+    return x
+
+def build_model():
+    # Global Branch (long-term periodic view)
     global_input = Input(shape=(GLOBAL_BINS, 1), name="global_view")
-    global_branch = Conv1D(filters=16, kernel_size=11, activation="relu", padding="same")(global_input)
-    global_branch = MaxPooling1D(pool_size=5)(global_branch)
-    global_branch = Conv1D(filters=32, kernel_size=7, activation="relu", padding="same")(global_branch)
-    global_branch = MaxPooling1D(pool_size=5)(global_branch)
-    global_branch = Flatten()(global_branch)
+    x_g = Conv1D(16, 5, activation="relu", padding="same")(global_input)
+    x_g = MaxPooling1D(pool_size=2)(x_g)
+    
+    x_g = residual_block(x_g, 32, 5)
+    x_g = residual_block(x_g, 64, 5)
+    x_g = residual_block(x_g, 128, 5)
+    x_g = GlobalAveragePooling1D()(x_g)
 
+    # Local Branch (zoomed-in transit shape)
     local_input = Input(shape=(LOCAL_BINS, 1), name="local_view")
-    local_branch = Conv1D(filters=16, kernel_size=5, activation="relu", padding="same")(local_input)
-    local_branch = MaxPooling1D(pool_size=2)(local_branch)
-    local_branch = Conv1D(filters=32, kernel_size=3, activation="relu", padding="same")(local_branch)
-    local_branch = MaxPooling1D(pool_size=2)(local_branch)
-    local_branch = Flatten()(local_branch)
+    x_l = Conv1D(16, 3, activation="relu", padding="same")(local_input)
+    x_l = MaxPooling1D(pool_size=2)(x_l)
+    
+    x_l = residual_block(x_l, 32, 3)
+    x_l = residual_block(x_l, 64, 3)
+    x_l = GlobalAveragePooling1D()(x_l)
 
-    merged = Concatenate()([global_branch, local_branch])
-    dense = Dense(128, activation="relu")(merged)
-    dense = Dropout(0.35)(dense)
-    dense = Dense(64, activation="relu")(dense)
-    dense = Dropout(0.25)(dense)
+    # Merge branches
+    merged = Concatenate()([x_g, x_l])
+    
+    # Deep Classifier
+    dense = Dense(256, activation="relu", kernel_regularizer=l2(1e-4))(merged)
+    dense = Dropout(0.4)(dense)
+    dense = Dense(128, activation="relu", kernel_regularizer=l2(1e-4))(dense)
+    dense = Dropout(0.3)(dense)
     output = Dense(1, activation="sigmoid", name="planet_probability")(dense)
 
     model = Model(inputs=[global_input, local_input], outputs=output)
     model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.0005), # Slightly lower LR for deep network
         loss="binary_crossentropy",
         metrics=[
             "accuracy",

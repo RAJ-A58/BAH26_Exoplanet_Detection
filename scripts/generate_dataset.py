@@ -1,17 +1,40 @@
 import argparse
 import os
+import warnings
+
+# Suppress warnings
+warnings.filterwarnings("ignore")
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
 import batman
 import numpy as np
 from wotan import flatten
+import lightkurve as lk
+from sklearn.utils import shuffle
 
-from pipeline_utils import SYNTHETIC_DATA_DIR, build_dual_views, ensure_project_dirs
+from pipeline_utils import SYNTHETIC_DATA_DIR, RAW_NASA_DATA_DIR, build_dual_views, ensure_project_dirs
 
 
-DEFAULT_NUM_SAMPLES = 8000
+DEFAULT_NUM_SAMPLES = 30000
 DAYS_OBSERVED = 27.0
 DATA_POINTS = 4000
 CLASS_CYCLE = ("planet_small", "planet_large", "eclipsing_binary", "stellar_variability", "noise")
+
+REAL_NOISE_POOL = []
+
+def initialize_real_noise():
+    print("Downloading Real NASA Noise Pool (this will take a minute)...", flush=True)
+    targets = ["Kepler-22", "Kepler-69", "Kepler-62"]
+    for target in targets:
+        try:
+            lc = lk.search_lightcurve(target, author="Kepler", cadence="short")[0].download(download_dir=RAW_NASA_DATA_DIR)
+            lc = lc.remove_nans().remove_outliers(5)
+            flat = flatten(lc.time.value, lc.flux.value, window_length=0.278, method="biweight")
+            REAL_NOISE_POOL.append(flat)
+            print(f"Successfully downloaded and processed {target} for noise pool.", flush=True)
+        except Exception as e:
+            print(f"Failed to download {target}: {e}", flush=True)
 
 
 def add_stellar_variability(time: np.ndarray, amplitude_scale: float = 1.0) -> np.ndarray:
@@ -106,13 +129,24 @@ def generate_sample(sample_class: str):
     else:
         raise ValueError(f"Unsupported sample_class: {sample_class}")
 
-    variability_scale = 1.6 if sample_class in {"stellar_variability", "eclipsing_binary"} else 1.0
-    stellar_wobble = add_stellar_variability(time, amplitude_scale=variability_scale)
-    noise = np.random.normal(0, np.random.uniform(0.0004, 0.0015), DATA_POINTS)
-    noisy_flux = signal_flux + stellar_wobble + noise
+    # Inject Real NASA Noise 20% of the time if available
+    if len(REAL_NOISE_POOL) > 0 and np.random.rand() < 0.20:
+        real_flat = REAL_NOISE_POOL[np.random.randint(0, len(REAL_NOISE_POOL))]
+        if len(real_flat) > DATA_POINTS:
+            start_idx = np.random.randint(0, len(real_flat) - DATA_POINTS)
+            base_noise = real_flat[start_idx : start_idx + DATA_POINTS]
+        else:
+            base_noise = np.pad(real_flat, (0, DATA_POINTS - len(real_flat)), mode='wrap')
+            
+        noisy_flux = signal_flux + base_noise - 1.0
+        flattened_flux = flatten(time, noisy_flux, window_length=0.278, method="biweight")
+    else:
+        variability_scale = 1.6 if sample_class in {"stellar_variability", "eclipsing_binary"} else 1.0
+        stellar_wobble = add_stellar_variability(time, amplitude_scale=variability_scale)
+        noise = np.random.normal(0, np.random.uniform(0.0004, 0.0015), DATA_POINTS)
+        noisy_flux = signal_flux + stellar_wobble + noise
+        flattened_flux = flatten(time, noisy_flux, window_length=0.278, method="biweight")
 
-    # Use window_length=0.278 (approx 6.6 hours) to exactly match test_kepler.py (401 cadences)
-    flattened_flux = flatten(time, noisy_flux, window_length=0.278, method="biweight")
     dual_views = build_dual_views(time, flattened_flux, period=period, t0=t0)
 
     return {
@@ -131,7 +165,7 @@ def parse_args():
     parser.add_argument(
         "--progress-every",
         type=int,
-        default=50,
+        default=500,
         help="Print progress every N generated samples.",
     )
     return parser.parse_args()
@@ -141,6 +175,8 @@ def main():
     args = parse_args()
     ensure_project_dirs()
     os.makedirs(SYNTHETIC_DATA_DIR, exist_ok=True)
+    
+    initialize_real_noise()
 
     print(f"Generating {args.num_samples} light curves...", flush=True)
     global_views = []
@@ -163,6 +199,11 @@ def main():
 
         if (index + 1) % args.progress_every == 0:
             print(f"Generated {index + 1} / {args.num_samples} samples...", flush=True)
+
+    # Shuffle the dataset completely before saving
+    global_views, local_views, labels, metadata_rows = shuffle(
+        global_views, local_views, labels, metadata_rows, random_state=42
+    )
 
     X_global = np.expand_dims(np.asarray(global_views, dtype=np.float32), axis=-1)
     X_local = np.expand_dims(np.asarray(local_views, dtype=np.float32), axis=-1)
