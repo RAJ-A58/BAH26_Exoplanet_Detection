@@ -93,6 +93,16 @@ def auto_center_t0(time: np.ndarray, flux: np.ndarray, period: float, initial_t0
             
     return best_t0
 
+def mask_transit(time: np.ndarray, flux: np.ndarray, period: float, t0: float, duration: float = 0.2) -> np.ndarray:
+    masked_flux = flux.copy()
+    # Calculate phase from -0.5*period to 0.5*period
+    phase = (time - t0 + 0.5 * period) % period - 0.5 * period
+    # Find points inside the transit dip (give it a generous duration window)
+    transit_mask = np.abs(phase) < (duration / 2)
+    # Replace those points with 1.0 (the baseline flux)
+    masked_flux[transit_mask] = 1.0
+    return masked_flux
+
 def main():
     parser = argparse.ArgumentParser(description="Run real Kepler inference with optional BLS period search.")
     parser.add_argument("--target", default="Kepler-10", help="Kepler target name to download.")
@@ -113,52 +123,80 @@ def main():
     model = load_model(MODEL_PATH)
 
     print(f"2. Downloading/Loading Real {args.target} Data from NASA...")
-    time, flux = load_real_lightcurve(args.target)
+    time, original_flux = load_real_lightcurve(args.target)
 
-    if args.period_source == "searched":
-        print("3. Searching for the period with Box Least Squares...")
-        period, initial_t0, _ = search_period_with_bls(time, flux)
-        print("   Auto-centering the transit epoch (t0)...")
-        t0 = auto_center_t0(time, flux, period, initial_t0)
-    else:
-        print("3. Using the provided orbital period and transit epoch...")
-        period, t0 = args.period, args.t0
+    current_flux = original_flux.copy()
+    max_iterations = 3
+    planets_found = 0
 
-    print(f"Selected period: {period:.6f} days")
-    print(f"Selected transit epoch: {t0:.6f} days")
+    for i in range(max_iterations):
+        planet_idx = i + 1
+        print(f"\n--- HUNTING FOR PLANET {planet_idx} ---")
 
-    print("4. Building standardized global and local folded views...")
-    dual_views = build_dual_views(time, flux, period=period, t0=t0)
-    global_input = np.expand_dims(dual_views["global_view"], axis=(0, -1))
-    local_input = np.expand_dims(dual_views["local_view"], axis=(0, -1))
+        if args.period_source == "searched":
+            print("3. Searching for the period with Box Least Squares...")
+            period, initial_t0, _ = search_period_with_bls(time, current_flux)
+            print("   Auto-centering the transit epoch (t0)...")
+            t0 = auto_center_t0(time, current_flux, period, initial_t0)
+        else:
+            print("3. Using the provided orbital period and transit epoch...")
+            period, t0 = args.period, args.t0
 
-    print("\n--- THE MOMENT OF TRUTH ---")
-    print("Passing the real NASA data into the dual-view model...")
-    prediction = model.predict({"global_view": global_input, "local_view": local_input}, verbose=0)[0][0]
-    predicted_class = int(prediction >= 0.5)
+        print(f"Selected period: {period:.6f} days")
+        print(f"Selected transit epoch: {t0:.6f} days")
 
-    row = {
-        "target": args.target,
-        "known_label": args.known_label,
-        "prediction_score": f"{prediction:.6f}",
-        "predicted_class": predicted_class,
-        "period_source": args.period_source,
-        "period_days": f"{period:.6f}",
-        "t0_days": f"{t0:.6f}",
-    }
-    append_benchmark_row(row)
+        print("4. Building standardized global and local folded views...")
+        dual_views = build_dual_views(time, current_flux, period=period, t0=t0)
+        global_input = np.expand_dims(dual_views["global_view"], axis=(0, -1))
+        local_input = np.expand_dims(dual_views["local_view"], axis=(0, -1))
 
-    print("\n=======================================================")
-    print(f"Target: {args.target}")
-    print(f"Known label: {args.known_label}")
-    print(f"Period source: {args.period_source}")
-    if predicted_class == 1:
-        print("PLANET DETECTED")
-    else:
-        print("NO PLANET DETECTED")
-    print(f"Confidence Score: {prediction * 100:.2f}%")
-    print(f"Benchmark row saved to {BENCHMARK_CSV}")
-    print("=======================================================\n")
+        print("\n--- THE MOMENT OF TRUTH ---")
+        print("Passing the real NASA data into the dual-view model...")
+        prediction = model.predict({"global_view": global_input, "local_view": local_input}, verbose=0)[0][0]
+        predicted_class = int(prediction >= 0.5)
+
+        target_name_logged = f"{args.target} (Planet {planet_idx})"
+
+        row = {
+            "target": target_name_logged,
+            "known_label": args.known_label,
+            "prediction_score": f"{prediction:.6f}",
+            "predicted_class": predicted_class,
+            "period_source": args.period_source,
+            "period_days": f"{period:.6f}",
+            "t0_days": f"{t0:.6f}",
+        }
+        append_benchmark_row(row)
+
+        print("\n=======================================================")
+        print(f"Target: {target_name_logged}")
+        print(f"Known label: {args.known_label}")
+        print(f"Period source: {args.period_source}")
+        if predicted_class == 1:
+            print("PLANET DETECTED")
+            print(f"Confidence Score: {prediction * 100:.2f}%")
+            print(f"Benchmark row saved to {BENCHMARK_CSV}")
+            print("=======================================================\n")
+            
+            planets_found += 1
+            print(f"Pre-Whitening: Erasing Planet {planet_idx}'s transits from the light curve...")
+            current_flux = mask_transit(time, current_flux, period, t0, duration=0.4)
+            
+            # If using hardcoded known period, we only run once since we don't have multiple hardcoded periods
+            if args.period_source == "known":
+                break
+        else:
+            print("NO PLANET DETECTED")
+            print(f"Confidence Score: {prediction * 100:.2f}%")
+            print(f"Benchmark row saved to {BENCHMARK_CSV}")
+            print("=======================================================\n")
+            
+            if args.period_source == "known":
+                break
+                
+            print(f"Pre-Whitening: Erasing the noise signal from the light curve...")
+            current_flux = mask_transit(time, current_flux, period, t0, duration=0.4)
+            # We do NOT break here. We masked the noise, so BLS can find the real planet next!
 
 
 if __name__ == "__main__":

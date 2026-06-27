@@ -15,6 +15,8 @@ targets = [
     {"name": "Kepler-3", "label": "confirmed_planet (Neptune, 4.9 days)"},
     {"name": "Kepler-5", "label": "confirmed_planet (Hot Jupiter, 3.5 days)"},
     {"name": "Kepler-6", "label": "confirmed_planet (Hot Jupiter, 3.2 days)"},
+    {"name": "Kepler-20", "label": "confirmed_planet (Multi-planet, Neptune b @ 3.7 days)"},
+    {"name": "Kepler-62", "label": "confirmed_planet (Multi-planet, Super-Earth b @ 5.7 days)"},
 ]
 
 for target in targets:
