@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🪐 BAH26 — Exoplanet Detection Pipeline
+#  BAH26 Exoplanet Detection Pipeline
 
 **An end-to-end AI-powered exoplanet transit detection system using a Dual-Branch Residual 1D-CNN trained on 30,000 synthetic light curves injected with real NASA noise.**
 
@@ -11,7 +11,7 @@
 [![ROC-AUC](https://img.shields.io/badge/ROC--AUC-0.8792-brightgreen?style=for-the-badge)](./results/)
 [![Benchmark](https://img.shields.io/badge/Benchmark-100%25%20%2811%2F11%20Stars%29-success?style=for-the-badge)](./results/)
 
-> Built for the **ISRO Space Hackathon (BAH26)** — Detecting planets beyond our solar system from raw NASA Kepler photometric data using deep learning.
+> Built for the **ISRO Space Hackathon (BAH26)** Detecting planets beyond our solar system from raw NASA Kepler photometric data using deep learning.
 
 </div>
 
