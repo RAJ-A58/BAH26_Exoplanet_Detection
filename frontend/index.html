@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Exoplanet Detection Console</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <div class="cosmic-field" aria-hidden="true"></div>
+    <div class="planet-backdrop" aria-hidden="true">
+      <div class="planet-rings"></div>
+      <div class="planet-core">
+        <div class="planet-clouds"></div>
+        <div class="planet-storm storm-one"></div>
+        <div class="planet-storm storm-two"></div>
+      </div>
+      <div class="planet-moon moon-one"></div>
+      <div class="planet-moon moon-two"></div>
+    </div>
+    <div class="scan-layer" aria-hidden="true"></div>
+    <main class="shell">
+      <section class="masthead">
+        <div class="title-lockup">
+          <p class="eyebrow">Dual-view CNN planet finder</p>
+          <h1><span>Exoplanet</span><span>Detection</span><span>Console</span></h1>
+          <div class="signal-rail" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+        <div class="mission-stack">
+          <div class="status-pill" id="modelStatus">Model ready</div>
+          <div class="system-readout">
+            <span>Global 2001</span>
+            <span>Local 201</span>
+            <span>BLS armed</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <form class="control-panel" id="predictForm">
+          <div class="panel-tag">Input array</div>
+          <div class="mode-tabs" role="tablist" aria-label="Input mode">
+            <button type="button" class="mode-tab active" data-mode="synthetic">Sample</button>
+            <button type="button" class="mode-tab" data-mode="csv">CSV</button>
+            <button type="button" class="mode-tab" data-mode="target">Kepler</button>
+          </div>
+
+          <div class="field-group mode-pane" data-pane="synthetic">
+            <label>Training-set probe</label>
+            <p class="hint">Runs one saved synthetic light curve through the trained model.</p>
+          </div>
+
+          <div class="field-group mode-pane hidden" data-pane="csv">
+            <label for="csvFile">Light curve CSV</label>
+            <input id="csvFile" type="file" accept=".csv,.txt">
+            <p class="hint">Expected columns: <code>time</code> and <code>flux</code>. Common Kepler flux headers work too.</p>
+          </div>
+
+          <div class="field-group mode-pane hidden" data-pane="target">
+            <label for="target">NASA target</label>
+            <input id="target" type="text" value="Kepler-10" autocomplete="off">
+            <p class="hint">Uses Lightkurve short-cadence Kepler data. Cached downloads make this fastest.</p>
+          </div>
+
+          <div class="field-row">
+            <div class="field-group">
+              <label for="periodSource">Period source</label>
+              <select id="periodSource">
+                <option value="searched" selected>BLS search</option>
+                <option value="known">Known ephemeris</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label for="maxIterations">Hunts</label>
+              <input id="maxIterations" type="number" min="1" max="5" value="3">
+            </div>
+          </div>
+
+          <div class="field-row ephemeris">
+            <div class="field-group">
+              <label for="period">Period days</label>
+              <input id="period" type="number" step="0.000001" value="0.837495">
+            </div>
+            <div class="field-group">
+              <label for="t0">Transit epoch</label>
+              <input id="t0" type="number" step="0.000001" value="120.8">
+            </div>
+          </div>
+
+          <button class="run-button" type="submit">
+            <span class="run-dot"></span>
+            Run detection
+          </button>
+        </form>
+
+        <section class="results-panel">
+          <div class="orbit-scope" aria-hidden="true">
+            <div class="orbit-ring ring-one"></div>
+            <div class="orbit-ring ring-two"></div>
+            <div class="orbit-ring ring-three"></div>
+            <div class="transit-spark"></div>
+          </div>
+          <div class="result-hero">
+            <div>
+              <p class="eyebrow">Prediction</p>
+              <h2 id="verdict">Awaiting signal</h2>
+            </div>
+            <div class="confidence-meter" aria-label="Confidence">
+              <div id="confidenceFill"></div>
+              <div class="meter-grid"></div>
+              <span id="confidenceText">0%</span>
+            </div>
+          </div>
+
+          <div class="metrics" id="metrics">
+            <div><span>Source</span><strong>-</strong></div>
+            <div><span>Period</span><strong>-</strong></div>
+            <div><span>t0</span><strong>-</strong></div>
+          </div>
+
+          <div class="charts">
+            <article>
+              <header>
+                <span>Global folded view</span>
+                <small>2001 bins</small>
+              </header>
+              <canvas id="globalChart" width="900" height="280"></canvas>
+            </article>
+            <article>
+              <header>
+                <span>Local transit view</span>
+                <small>201 bins</small>
+              </header>
+              <canvas id="localChart" width="900" height="280"></canvas>
+            </article>
+          </div>
+
+          <div class="hunt-list" id="huntList"></div>
+        </section>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
