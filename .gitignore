@@ -1,0 +1,24 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+isroenv/
+venv/
+.venv/
+.run/
+env/
+.env
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Downloaded Datasets (Ignore so we don't push huge FITS files to GitHub)
+data/
+*.fits
+*.csv
+*.png
+
+# Generated evaluation artifacts
+results/synthetic/*.npy

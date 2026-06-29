@@ -1,0 +1,12 @@
+lightkurve
+astropy
+numpy
+pandas
+matplotlib
+scipy
+scikit-learn
+tensorflow
+jupyter
+wotan
+batman-package
+tqdm

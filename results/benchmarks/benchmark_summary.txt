@@ -1,0 +1,32 @@
+======================================================================
+  EXOPLANET BENCHMARK SUITE — FULL RESULTS
+======================================================================
+Target                 Label          Truth    Pred     Score   
+----------------------------------------------------------------------
+✗ Kepler-10 (Planet 3) PLANET         NOISE    0.0848
+✗ Kepler-4 (Planet 3)  PLANET         NOISE    0.0838
+✗ Kepler-8 (Planet 3)  PLANET         NOISE    0.0841
+✗ Kepler-7 (Planet 3)  PLANET         NOISE    0.0840
+✗ Kepler-1 (Planet 3)  PLANET         NOISE    0.0854
+✗ Kepler-2 (Planet 3)  PLANET         NOISE    0.0894
+✗ Kepler-5 (Planet 3)  PLANET         NOISE    0.0843
+✗ Kepler-6 (Planet 3)  PLANET         NOISE    0.0856
+✗ Kepler-3 (Planet 3)  PLANET         NOISE    0.1322
+✗ Kepler-20 (Planet 3) PLANET         NOISE    0.0844
+✗ Kepler-62 (Planet 3) PLANET         NOISE    0.0842
+✓ KIC 6431670 (Planet 3 FP             NOISE    0.0841
+✓ KIC 3544595 (Planet 3 FP             NOISE    0.0864
+✓ KIC 4914923 (Planet 3 FP             NOISE    0.2613
+✓ KIC 11295426         FP             NOISE    -1.0000
+----------------------------------------------------------------------
+
+  Confusion matrix
+                  Predicted PLANET   Predicted NOISE
+  True PLANET             0                  11
+  True FP/Noise           0                   3
+
+  Precision : 0.000
+  Recall    : 0.000
+  F1 Score  : 0.000
+  Accuracy  : 0.214
+======================================================================
