@@ -300,8 +300,8 @@ class AppHandler(SimpleHTTPRequestHandler):
 
 def main():
     port = int(os.environ.get("PORT", "8000"))
-    server = ThreadingHTTPServer(("127.0.0.1", port), AppHandler)
-    print(f"Exoplanet detector frontend running at http://127.0.0.1:{port}")
+    server = ThreadingHTTPServer(("0.0.0.0", port), AppHandler)
+    print(f"Exoplanet detector frontend running at http://0.0.0.0:{port}")
     print("Press Ctrl+C to stop.")
     server.serve_forever()
 
