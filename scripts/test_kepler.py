@@ -22,6 +22,8 @@ from pipeline_utils import (
     build_dual_views,
     ensure_project_dirs,
 )
+from centroid_override import CentroidOverride
+from train_specialist_model import cascade_predict, load_specialist
 
 
 MODEL_PATH = os.path.join(SYNTHETIC_RESULTS_DIR, "exoplanet_cnn_model.keras")
@@ -60,6 +62,9 @@ def load_real_lightcurve(target: str):
     return lc_flat.time.value, lc_flat.flux.value
 
 
+SPECIALIST_MODEL_PATH = os.path.join(SYNTHETIC_RESULTS_DIR, "specialist_small_planet_model.keras")
+
+
 def append_benchmark_row(row):
     file_exists = os.path.exists(BENCHMARK_CSV)
     with open(BENCHMARK_CSV, "a", newline="", encoding="utf-8") as handle:
@@ -73,6 +78,8 @@ def append_benchmark_row(row):
                 "period_source",
                 "period_days",
                 "t0_days",
+                "centroid_offset_px",
+                "centroid_override",
             ],
         )
         if not file_exists:
@@ -129,6 +136,14 @@ def main():
     print("1. Loading the trained AI Model...")
     model = load_model(MODEL_PATH)
 
+    # Load specialist model if available (stage-2 cascade for super-Earths)
+    specialist_model = None
+    if os.path.exists(SPECIALIST_MODEL_PATH):
+        specialist_model = load_specialist(SPECIALIST_MODEL_PATH)
+        print("   Specialist small-planet model loaded for cascade inference.")
+    else:
+        print("   Specialist model not found — running stage-1 only.")
+
     print(f"2. Downloading/Loading Real {args.target} Data from NASA...")
     time, original_flux = load_real_lightcurve(args.target)
 
@@ -159,7 +174,24 @@ def main():
 
         print("\n--- THE MOMENT OF TRUTH ---")
         print("Passing the real NASA data into the dual-view model...")
-        prediction = model.predict({"global_view": global_input, "local_view": local_input}, verbose=0)[0][0]
+
+        # Stage-1 (or cascade) inference
+        if specialist_model is not None:
+            raw_score, stage_used = cascade_predict(
+                model, specialist_model,
+                dual_views["global_view"], dual_views["local_view"],
+                verbose=True,
+            )
+            print(f"   Cascade stage used: {stage_used}")
+        else:
+            raw_score = float(
+                model.predict({"global_view": global_input, "local_view": local_input},
+                               verbose=0)[0][0]
+            )
+
+        # Centroid override — suppresses EB false positives
+        centroid = CentroidOverride(args.target, time, period, t0, verbose=True)
+        prediction, verdict, centroid_report = centroid.apply(raw_score)
         predicted_class = int(prediction >= 0.5)
 
         target_name_logged = f"{args.target} (Planet {planet_idx})"
@@ -172,6 +204,8 @@ def main():
             "period_source": args.period_source,
             "period_days": f"{period:.6f}",
             "t0_days": f"{t0:.6f}",
+            "centroid_offset_px": centroid_report.get("centroid_offset_px", ""),
+            "centroid_override": centroid_report.get("override_triggered", False),
         }
         append_benchmark_row(row)
 

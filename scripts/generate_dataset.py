@@ -212,6 +212,10 @@ def main():
     np.save(os.path.join(SYNTHETIC_DATA_DIR, "X_global.npy"), X_global)
     np.save(os.path.join(SYNTHETIC_DATA_DIR, "X_local.npy"), X_local)
     np.save(os.path.join(SYNTHETIC_DATA_DIR, "y_train.npy"), y_array)
+    
+    y_class_array = np.array([CLASS_CYCLE.index(row[0]) for row in metadata_rows], dtype=np.int32)
+    np.save(os.path.join(SYNTHETIC_DATA_DIR, "y_class.npy"), y_class_array)
+
     np.save(
         os.path.join(SYNTHETIC_DATA_DIR, "metadata.npy"),
         np.asarray(metadata_rows, dtype=object),
