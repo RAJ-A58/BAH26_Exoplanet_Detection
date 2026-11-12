@@ -1,6 +1,6 @@
 <div align="center">
 
-#  BAH26 Exoplanet Detection Pipeline
+# 🪐 Deep Exoplanet Transit Detection Pipeline
 
 **An end-to-end AI-powered exoplanet transit detection system using a Dual-Branch Residual 1D-CNN trained on 30,000 synthetic light curves injected with real NASA noise.**
 
@@ -11,7 +11,7 @@
 [![ROC-AUC](https://img.shields.io/badge/ROC--AUC-0.8792-brightgreen?style=for-the-badge)](./results/)
 [![Benchmark](https://img.shields.io/badge/Benchmark-100%25%20%2811%2F11%20Stars%29-success?style=for-the-badge)](./results/)
 
-> Built for the **ISRO Space Hackathon (BAH26)** Detecting planets beyond our solar system from raw NASA Kepler photometric data using deep learning.
+> Detecting planets beyond our solar system from raw NASA Kepler photometric data using deep learning and iterative pre-whitening.
 
 </div>
 
@@ -40,7 +40,7 @@
 
 ## Overview
 
-BAH26 is a complete, research-grade exoplanet detection pipeline that:
+This pipeline provides a complete, research-grade exoplanet detection framework that:
 
 1. **Generates** 30,000 physics-accurate synthetic light curves using [`batman`](https://batman-package.readthedocs.io/) transit models, blended with real NASA noise extracted from Kepler targets (Kepler-22, 69, 62).
 2. **Trains** a Deep Residual Dual-View 1D-CNN that simultaneously processes a global phase-folded view (2001 bins) and a local zoomed transit view (201 bins).
@@ -740,7 +740,7 @@ Full internal documentation available in `docs/`:
 
 | File | Description |
 |---|---|
-| `implementation_plan.md` | Detailed dual-branch CNN architecture proposal submitted for ISRO hackathon |
+| `implementation_plan.md` | Detailed dual-branch CNN architecture proposal and specifications |
 | `current_progress.md` | Live project status with benchmark results and key findings |
 | `known_challenges_and_fixes.md` | Complete bug history and engineering solutions with dates |
 | `multiplanet_system_walkthrough.md` | Step-by-step multi-planet detection walkthrough (Kepler-20) |
@@ -751,7 +751,7 @@ Full internal documentation available in `docs/`:
 
 <div align="center">
 
-**Built with heart for the ISRO Space Hackathon (BAH26)**
+**Deep Exoplanet Transit Detection Pipeline**
 
 *Reaching for the stars — one light curve at a time.*
 
