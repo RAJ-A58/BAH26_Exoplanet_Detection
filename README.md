@@ -443,7 +443,7 @@ Threshold: `CENTROID_SHIFT_THRESHOLD_PX = 0.5` (Kepler pixel scale ≈ 4 arcsec/
 
 ```bash
 # Clone the repository
-git clone https://github.com/<your-org>/BAH26_Exoplanet_Detection.git
+git clone https://github.com/RAJ-A58/BAH26_Exoplanet_Detection.git
 cd BAH26_Exoplanet_Detection
 
 # Create and activate virtual environment
